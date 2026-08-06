@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VALURDEX — Artista Musical</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --gold: #D4AF37;
+    --gold-light: #E8D48B;
+    --gold-dark: #A8891F;
+    --cyan: #00F2EA;
+    --cyan-dim: rgba(0,242,234,0.15);
+    --black: #050505;
+    --dark: #0a0a0a;
+    --gray-dark: #1a1a1a;
+    --gray: #2a2a2a;
+    --gray-light: #888888;
+    --white: #f0f0f0;
+    --font: 'Space Grotesk', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--black);
+    color: var(--white);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== LOADING SCREEN ===== */
+  #loader {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--black);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+  }
+  #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .loader-ring {
+    width: 50px; height: 50px;
+    border: 2px solid var(--gray);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .loader-text {
+    margin-top: 20px;
+    font-size: 14px; font-weight: 500;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--gold);
+    animation: pulse-text 1.5s ease-in-out infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse-text { 0%,100%{ opacity: 0.4; } 50%{ opacity: 1; } }
+
+  /* ===== PARALLAX BACKGROUND ===== */
+  .parallax-bg {
+    position: fixed; inset: 0; z-index: 0;
+    overflow: hidden;
+  }
+  .parallax-bg img {
+    position: absolute;
+    top: -10%; left: 0;
+    width: 100%; height: 130%;
+    object-fit: cover;
+    object-position: center 15%;
+    will-change: transform;
+    filter: brightness(0.65) contrast(1.15) saturate(1.1);
+  }
+  .parallax-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(5,5,5,0.65) 0%,
+      rgba(5,5,5,0.75) 30%,
+      rgba(5,5,5,0.82) 60%,
+      rgba(5,5,5,0.92) 85%,
+      rgba(5,5,5,0.98) 100%
+    );
+  }
+
+  .bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0;
+    animation: blob-drift 12s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .blob-1 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(212,175,55,0.15), transparent 70%);
+    top: 10%; left: -10%;
+    animation-delay: 0s; animation-duration: 14s;
+  }
+  .blob-2 {
+    width: 350px; height: 350px;
+    background: radial-gradient(circle, rgba(225,48,108,0.1), transparent 70%);
+    top: 40%; right: -8%;
+    animation-delay: -3s; animation-duration: 16s;
+  }
+  .blob-3 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(0,242,234,0.08), transparent 70%);
+    bottom: 10%; left: 20%;
+    animation-delay: -6s; animation-duration: 18s;
+  }
+  .blob-4 {
+    width: 250px; height: 250px;
+    background: radial-gradient(circle, rgba(131,58,180,0.1), transparent 70%);
+    top: 20%; right: 15%;
+    animation-delay: -9s; animation-duration: 15s;
+  }
+  @keyframes blob-drift {
+    0% { opacity: 0.3; transform: translate(0, 0) scale(1); }
+    33% { opacity: 0.6; transform: translate(30px, -20px) scale(1.1); }
+    66% { opacity: 0.4; transform: translate(-20px, 30px) scale(0.95); }
+    100% { opacity: 0.5; transform: translate(15px, 15px) scale(1.05); }
+  }
+
+  .scanline {
+    position: absolute; inset: 0; z-index: 2;
+    pointer-events: none; overflow: hidden;
+  }
+  .scanline::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.06), transparent);
+    animation: scan-move 6s linear infinite;
+  }
+  @keyframes scan-move {
+    0% { top: -2px; }
+    100% { top: 100%; }
+  }
+
+  .grain {
+    position: fixed; inset: 0; z-index: 3;
+    pointer-events: none; opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 200px;
+  }
+
+  /* ===== MAIN CONTENT ===== */
+  .content {
+    position: relative; z-index: 4;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px 60px;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(35px);
+    transition: opacity 0.7s cubic-bezier(0.25,0.46,0.45,0.94),
+                transform 0.7s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.08s; }
+  .reveal-delay-2 { transition-delay: 0.16s; }
+  .reveal-delay-3 { transition-delay: 0.24s; }
+  .reveal-delay-4 { transition-delay: 0.32s; }
+
+  /* ===== HEADER ===== */
+  .header { text-align: center; margin-bottom: 36px; padding-top: 20px; }
+
+  .avatar-wrap {
+    width: 110px; height: 110px;
+    margin: 0 auto 24px;
+    border-radius: 50%;
+    padding: 3px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    box-shadow: 0 0 30px rgba(212,175,55,0.2), 0 0 60px rgba(212,175,55,0.08);
+    animation: avatar-glow 3s ease-in-out infinite alternate;
+  }
+  @keyframes avatar-glow {
+    0% { box-shadow: 0 0 25px rgba(212,175,55,0.15), 0 0 50px rgba(212,175,55,0.05); }
+    100% { box-shadow: 0 0 40px rgba(212,175,55,0.35), 0 0 80px rgba(212,175,55,0.12); }
+  }
+  .avatar-wrap img {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center 20%;
+    display: block;
+    border: 3px solid var(--black);
+  }
+
+  .artist-name {
+    font-size: clamp(2rem, 6vw, 3.2rem);
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 40%, var(--gold-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    margin-bottom: 18px;
+    filter: drop-shadow(0 0 20px rgba(212,175,55,0.25));
+  }
+
+  /* ===== STATS — MÁS GRANDES ===== */
+  .stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 24px;
+    transition: all 0.3s ease;
+  }
+  .stat-item:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(212,175,55,0.2);
+    box-shadow: 0 0 20px rgba(212,175,55,0.06);
+  }
+  .stat-icon {
+    font-size: 16px;
+    color: var(--gold);
+    opacity: 0.85;
+  }
+  .stat-number {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: 0.02em;
+  }
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--gray-light);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .stat-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255,255,255,0.08);
+    margin: 0 2px;
+  }
+
+  /* ===== TYPEWRITER CELESTE ===== */
+  .typewriter-wrap {
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .typewriter-text {
+    font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    display: inline;
+    line-height: 1.4;
+  }
+  .typewriter-text .char {
+    display: inline-block;
+    color: var(--cyan);
+    -webkit-text-fill-color: var(--cyan);
+    text-shadow: 0 0 10px rgba(0,242,234,0.5), 0 0 25px rgba(0,242,234,0.2);
+    animation: char-pop 0.3s ease-out forwards;
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  @keyframes char-pop {
+    0% { opacity: 0; transform: translateY(8px) scale(0.5); }
+    60% { opacity: 1; transform: translateY(-2px) scale(1.1); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .typewriter-text .char.space { width: 0.35em; }
+  .typewriter-text .char.pipe {
+    color: var(--gold);
+    -webkit-text-fill-color: var(--gold);
+    text-shadow: 0 0 8px rgba(212,175,55,0.6), 0 0 20px rgba(212,175,55,0.3);
+    animation: char-pop 0.3s ease-out forwards, pipe-glow 2s ease-in-out infinite alternate;
+  }
+  @keyframes pipe-glow {
+    0% { text-shadow: 0 0 8px rgba(212,175,55,0.6), 0 0 20px rgba(212,175,55,0.3); }
+    100% { text-shadow: 0 0 14px rgba(212,175,55,0.9), 0 0 35px rgba(212,175,55,0.5), 0 0 55px rgba(212,175,55,0.2); }
+  }
+
+  .typewriter-cursor {
+    display: inline-block;
+    width: 2px; height: 1.2em;
+    background: var(--cyan);
+    margin-left: 3px;
+    vertical-align: text-bottom;
+    animation: cursor-blink 0.7s step-end infinite;
+    border-radius: 1px;
+    box-shadow: 0 0 8px rgba(0,242,234,0.6), 0 0 20px rgba(0,242,234,0.3);
+  }
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .gold-line {
+    width: 50px; height: 1px;
+    margin: 0 auto;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  /* ===== LINKS CONTAINER ===== */
+  .links-container {
+    width: 100%; max-width: 440px;
+    display: flex; flex-direction: column;
+    gap: 14px; margin-bottom: 50px;
+  }
+
+  .social-btn {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; padding: 16px 20px;
+    background: rgba(10,10,10,0.55);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    text-decoration: none;
+    color: var(--white);
+    transition: transform 0.3s ease, box-shadow 0.35s ease, border-color 0.35s ease, background 0.35s ease;
+    position: relative; overflow: hidden;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .social-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    border-radius: 16px;
+    z-index: 0;
+  }
+  .social-btn.tiktok::before {
+    background: radial-gradient(ellipse at 20% 50%, rgba(0,242,234,0.18) 0%, rgba(255,0,80,0.1) 50%, transparent 80%);
+  }
+  .social-btn.youtube::before {
+    background: radial-gradient(ellipse at 20% 50%, rgba(255,0,0,0.18) 0%, rgba(255,60,0,0.08) 50%, transparent 75%);
+  }
+  .social-btn.spotify::before {
+    background: radial-gradient(ellipse at 20% 50%, rgba(30,215,96,0.18) 0%, transparent 70%);
+  }
+  .social-btn.instagram::before {
+    background: radial-gradient(ellipse at 20% 50%, rgba(225,48,108,0.14) 0%, rgba(131,58,180,0.1) 40%, rgba(253,150,29,0.08) 70%, transparent 90%);
+  }
+  .social-btn:hover::before, .social-btn:active::before { opacity: 1; }
+  .social-btn:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.1); }
+
+  .social-btn.tiktok:hover { border-color: rgba(0,242,234,0.3); box-shadow: 0 8px 35px rgba(0,242,234,0.1), 0 0 15px rgba(255,0,80,0.06); }
+  .social-btn.youtube:hover { border-color: rgba(255,0,0,0.3); box-shadow: 0 8px 35px rgba(255,0,0,0.1); }
+  .social-btn.spotify:hover { border-color: rgba(30,215,96,0.3); box-shadow: 0 8px 35px rgba(30,215,96,0.1); }
+  .social-btn.instagram:hover { border-color: rgba(225,48,108,0.3); box-shadow: 0 8px 35px rgba(225,48,108,0.08), 0 0 20px rgba(131,58,180,0.06); }
+  .social-btn:active { transform: scale(0.97) translateY(-1px); transition-duration: 0.1s; }
+
+  .btn-icon {
+    position: relative; z-index: 1;
+    width: 42px; height: 42px;
+    border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; flex-shrink: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .social-btn:hover .btn-icon { transform: scale(1.12); }
+
+  .tiktok .btn-icon { background: rgba(0,242,234,0.1); color: #00F2EA; }
+  .youtube .btn-icon { background: rgba(255,0,0,0.1); color: #FF0000; }
+  .spotify .btn-icon { background: rgba(30,215,96,0.1); color: #1ED760; }
+  .instagram .btn-icon { background: linear-gradient(135deg, rgba(225,48,108,0.15), rgba(131,58,180,0.15)); color: #E1306C; }
+
+  .social-btn.tiktok:hover .btn-icon { box-shadow: 0 0 18px rgba(0,242,234,0.3); }
+  .social-btn.youtube:hover .btn-icon { box-shadow: 0 0 18px rgba(255,0,0,0.3); }
+  .social-btn.spotify:hover .btn-icon { box-shadow: 0 0 18px rgba(30,215,96,0.3); }
+  .social-btn.instagram:hover .btn-icon { box-shadow: 0 0 18px rgba(225,48,108,0.3); }
+
+  .btn-text {
+    position: relative; z-index: 1;
+    flex: 1; text-align: center;
+  }
+  .btn-text span {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: text-shadow 0.3s ease;
+  }
+  .tiktok .btn-text span {
+    background: linear-gradient(90deg, #00F2EA, #FF0050);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .youtube .btn-text span {
+    color: #FF3333; -webkit-text-fill-color: #FF3333;
+  }
+  .spotify .btn-text span {
+    color: #1ED760; -webkit-text-fill-color: #1ED760;
+  }
+  .instagram .btn-text span {
+    background: linear-gradient(90deg, #F58529, #DD2A7B, #8134AF);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .social-btn.tiktok:hover .btn-text span { text-shadow: 0 0 20px rgba(0,242,234,0.4); }
+  .social-btn.youtube:hover .btn-text span { text-shadow: 0 0 20px rgba(255,0,0,0.4); }
+  .social-btn.spotify:hover .btn-text span { text-shadow: 0 0 20px rgba(30,215,96,0.4); }
+  .social-btn.instagram:hover .btn-text span { text-shadow: 0 0 20px rgba(225,48,108,0.4); }
+
+  .btn-arrow {
+    position: relative; z-index: 1;
+    font-size: 14px; color: var(--gray-light);
+    transition: transform 0.3s ease, color 0.3s ease;
+    flex-shrink: 0;
+  }
+  .social-btn:hover .btn-arrow { transform: translateX(4px); }
+  .tiktok:hover .btn-arrow { color: #00F2EA; }
+  .youtube:hover .btn-arrow { color: #FF3333; }
+  .spotify:hover .btn-arrow { color: #1ED760; }
+  .instagram:hover .btn-arrow { color: #E1306C; }
+
+  /* ===== CONNECT SECTION ===== */
+  .connect-section {
+    text-align: center; margin-bottom: 50px;
+    position: relative; padding: 0 20px;
+  }
+  .connect-title {
+    font-size: clamp(1.1rem, 3.5vw, 1.4rem);
+    font-weight: 600; letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 12px rgba(212,175,55,0.3));
+  }
+  .connect-desc {
+    font-size: clamp(0.82rem, 2.2vw, 0.92rem);
+    color: var(--cyan);
+    -webkit-text-fill-color: var(--cyan);
+    text-shadow: 0 0 12px rgba(0,242,234,0.3), 0 0 30px rgba(0,242,234,0.1);
+    line-height: 1.6;
+    max-width: 360px; margin: 0 auto;
+  }
+
+  .music-waves {
+    display: flex; align-items: center; justify-content: center;
+    gap: 3px; height: 28px; margin-top: 20px;
+  }
+  .music-waves .bar {
+    width: 3px; border-radius: 2px;
+    background: var(--gold);
+    animation: wave-bar 1.2s ease-in-out infinite;
+  }
+  .music-waves .bar:nth-child(1) { height: 8px; animation-delay: 0s; }
+  .music-waves .bar:nth-child(2) { height: 16px; animation-delay: 0.1s; }
+  .music-waves .bar:nth-child(3) { height: 24px; animation-delay: 0.2s; }
+  .music-waves .bar:nth-child(4) { height: 12px; animation-delay: 0.3s; }
+  .music-waves .bar:nth-child(5) { height: 20px; animation-delay: 0.4s; }
+  .music-waves .bar:nth-child(6) { height: 10px; animation-delay: 0.5s; }
+  .music-waves .bar:nth-child(7) { height: 18px; animation-delay: 0.6s; }
+  .music-waves .bar:nth-child(8) { height: 6px; animation-delay: 0.7s; }
+  .music-waves .bar:nth-child(9) { height: 14px; animation-delay: 0.15s; }
+  .music-waves .bar:nth-child(10) { height: 22px; animation-delay: 0.35s; }
+  .music-waves .bar:nth-child(11) { height: 9px; animation-delay: 0.55s; }
+  @keyframes wave-bar {
+    0%, 100% { transform: scaleY(0.4); opacity: 0.3; }
+    50% { transform: scaleY(1); opacity: 0.85; }
+  }
+
+  .particles-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .particle {
+    position: absolute;
+    width: 3px; height: 3px;
+    background: var(--gold);
+    border-radius: 50%; opacity: 0;
+    animation: float-particle 4s ease-in-out infinite;
+  }
+  @keyframes float-particle {
+    0% { opacity: 0; transform: translateY(0) scale(0.5); }
+    30% { opacity: 0.7; }
+    70% { opacity: 0.3; }
+    100% { opacity: 0; transform: translateY(-45px) scale(0); }
+  }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    text-align: center; padding: 30px 20px 20px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    width: 100%; max-width: 440px;
+  }
+  .footer-icons {
+    display: flex; align-items: center; justify-content: center;
+    gap: 20px; margin-bottom: 18px;
+  }
+  .footer-icon {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--gray-light); font-size: 15px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  .footer-icon:hover { color: var(--gold); border-color: rgba(212,175,55,0.3); background: rgba(212,175,55,0.06); transform: translateY(-2px); }
+  .footer-copy {
+    font-size: 0.72rem; color: var(--gray);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 520px) {
+    .content { padding: 30px 16px 50px; }
+    .avatar-wrap { width: 95px; height: 95px; }
+    .stats-row { gap: 8px; }
+    .stat-item { padding: 8px 14px; gap: 7px; }
+    .stat-icon { font-size: 14px; }
+    .stat-number { font-size: 0.95rem; }
+    .stat-label { font-size: 0.72rem; }
+    .stat-divider { height: 18px; }
+    .links-container { gap: 12px; }
+    .social-btn { padding: 14px 16px; gap: 12px; border-radius: 14px; }
+    .btn-icon { width: 38px; height: 38px; font-size: 17px; }
+    .btn-text span { font-size: 0.88rem; }
+  }
+  @media (min-width: 768px) {
+    .content { padding: 60px 20px 80px; }
+    .avatar-wrap { width: 120px; height: 120px; }
+    .links-container { max-width: 460px; }
+    .social-btn { padding: 18px 22px; }
+    .blob-1 { width: 500px; height: 500px; }
+    .blob-2 { width: 450px; height: 450px; }
+    .blob-3 { width: 400px; height: 400px; }
+    .blob-4 { width: 350px; height: 350px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text">VALURDEX</div>
+</div>
+
+<!-- PARALLAX BACKGROUND -->
+<div class="parallax-bg">
+  <img src="https://z-cdn-media.chatglm.cn/files/6a78f47f-9e0c-4d13-85b6-296a92920e80.jpg?auth_key=1886001547-3e6b2d55d263465b8a79fa5426458d26-0-b94353587dd856f342ae20f74e028b77" alt="VALURDEX" id="parallax-img">
+  <div class="parallax-overlay"></div>
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+  <div class="bg-blob blob-4"></div>
+  <div class="scanline"></div>
+</div>
+
+<!-- GRAIN -->
+<div class="grain"></div>
+
+<!-- MAIN CONTENT -->
+<main class="content">
+
+  <header class="header">
+    <div class="avatar-wrap reveal">
+      <img src="https://z-cdn-media.chatglm.cn/files/870423b9-a1ee-48da-91a4-e6e08d182b43.png?auth_key=1886002044-aea0d84c9e404eac94510b2dd343dc42-0-7058371dd2667ea4ac1a58c4f4f23e8e" alt="VALURDEX">
+    </div>
+    <h1 class="artist-name reveal reveal-delay-1">VALURDEX</h1>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="stats-row reveal reveal-delay-2">
+      <div class="stat-item">
+        <i class="fas fa-users stat-icon"></i>
+        <span class="stat-number">1,631</span>
+        <span class="stat-label">Seguidores</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <i class="fab fa-youtube stat-icon"></i>
+        <span class="stat-number">579</span>
+        <span class="stat-label">Suscriptores</span>
+      </div>
+    </div>
+
+    <div class="typewriter-wrap reveal reveal-delay-3">
+      <span class="typewriter-text" id="typewriter"></span>
+      <span class="typewriter-cursor" id="cursor"></span>
+    </div>
+    <div class="gold-line reveal reveal-delay-4"></div>
+  </header>
+
+  <div class="links-container">
+    <a href="https://www.tiktok.com/@valurdex14?_r=1&_t=ZS-98dq9Ufsr7X" target="_blank" rel="noopener noreferrer" class="social-btn tiktok reveal reveal-delay-1">
+      <div class="btn-icon"><i class="fab fa-tiktok"></i></div>
+      <div class="btn-text"><span>Sígueme en TikTok</span></div>
+      <div class="btn-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+    <a href="https://youtube.com/@valurdex?si=6ZnqX4q35FFqUT5q" target="_blank" rel="noopener noreferrer" class="social-btn youtube reveal reveal-delay-2">
+      <div class="btn-icon"><i class="fab fa-youtube"></i></div>
+      <div class="btn-text"><span>Mira mis videos en YouTube</span></div>
+      <div class="btn-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+    <a href="https://open.spotify.com/artist/206VW0HrgmAeDBhet8W4zJ?si=QYYSx6qoRYuRzVz51be8Xg&utm_source=copy-link" target="_blank" rel="noopener noreferrer" class="social-btn spotify reveal reveal-delay-3">
+      <div class="btn-icon"><i class="fab fa-spotify"></i></div>
+      <div class="btn-text"><span>Escucha mi música en Spotify</span></div>
+      <div class="btn-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+    <a href="https://www.instagram.com/valurdex?igsh=MXBwZHAxZ21qbzZrcg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" class="social-btn instagram reveal reveal-delay-4">
+      <div class="btn-icon"><i class="fab fa-instagram"></i></div>
+      <div class="btn-text"><span>Sígueme en Instagram</span></div>
+      <div class="btn-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+  </div>
+
+  <section class="connect-section reveal">
+    <div class="particles-container" id="particles"></div>
+    <h2 class="connect-title">Conecta con VALURDEX</h2>
+    <p class="connect-desc">Música, contenido y nuevos lanzamientos en todas mis plataformas oficiales.</p>
+    <div class="music-waves">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+    </div>
+  </section>
+
+  <footer class="footer reveal">
+    <div class="footer-icons">
+      <a href="https://www.tiktok.com/@valurdex14?_r=1&_t=ZS-98dq9Ufsr7X" target="_blank" rel="noopener noreferrer" class="footer-icon" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
+      <a href="https://youtube.com/@valurdex?si=6ZnqX4q35FFqUT5q" target="_blank" rel="noopener noreferrer" class="footer-icon" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+      <a href="https://open.spotify.com/artist/206VW0HrgmAeDBhet8W4zJ?si=QYYSx6qoRYuRzVz51be8Xg&utm_source=copy-link" target="_blank" rel="noopener noreferrer" class="footer-icon" aria-label="Spotify"><i class="fab fa-spotify"></i></a>
+      <a href="https://www.instagram.com/valurdex?igsh=MXBwZHAxZ21qbzZrcg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" class="footer-icon" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+    </div>
+    <p class="footer-copy">© 2026 VALURDEX — Todos los derechos reservados</p>
+  </footer>
+
+</main>
+
+<script>
+  // ===== LOADER =====
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      document.getElementById('loader').classList.add('hidden');
+      setTimeout(startTypewriter, 500);
+    }, 1200);
+  });
+
+  // ===== PARALLAX =====
+  const parallaxImg = document.getElementById('parallax-img');
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        parallaxImg.style.transform = `translateY(${-window.scrollY * 0.5}px)`;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+
+  // ===== TYPEWRITER CELESTE =====
+  function startTypewriter() {
+    const text = 'Artista musical  |  Contenido oficial';
+    const el = document.getElementById('typewriter');
+    const cursor = document.getElementById('cursor');
+    let i = 0;
+
+    function type() {
+      if (i < text.length) {
+        const char = text.charAt(i);
+        const span = document.createElement('span');
+        span.classList.add('char');
+        if (char === ' ') {
+          span.classList.add('space');
+          span.innerHTML = '&nbsp;';
+        } else if (char === '|') {
+          span.classList.add('pipe');
+          span.textContent = '|';
+        } else {
+          span.textContent = char;
+        }
+        el.appendChild(span);
+        i++;
+        setTimeout(type, 50 + Math.random() * 45);
+      } else {
+        setTimeout(() => {
+          cursor.style.transition = 'opacity 1s ease';
+          cursor.style.opacity = '0';
+        }, 5000);
+      }
+    }
+    type();
+  }
+
+  // ===== SCROLL REVEAL =====
+  const revealElements = document.querySelectorAll('.reveal');
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  revealElements.forEach(el => revealObserver.observe(el));
+
+  // ===== GOLD PARTICLES =====
+  const particlesContainer = document.getElementById('particles');
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('div');
+    p.classList.add('particle');
+    p.style.left = Math.random() * 100 + '%';
+    p.style.top = (25 + Math.random() * 55) + '%';
+    p.style.animationDelay = (Math.random() * 4) + 's';
+    p.style.animationDuration = (3 + Math.random() * 3) + 's';
+    const size = (2 + Math.random() * 2.5) + 'px';
+    p.style.width = size;
+    p.style.height = size;
+    particlesContainer.appendChild(p);
+  }
+</script>
+</body>
+</html>
